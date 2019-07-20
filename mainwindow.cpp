@@ -15,7 +15,6 @@
 #include "qcustomplot.h"
 #include <math.h>
 #include <QWidget>
-#include <cassert>
 
 MainWindow::MainWindow(QWidget *parent) :
     QMainWindow(parent)
@@ -54,6 +53,7 @@ MainWindow::MainWindow(QWidget *parent) :
     ui->facilityBox->addItems(facilityNames);
     ui->facilityBox->setVisible(false);
     ui->methodsBox->setVisible(false);
+    ui->graphicsView_2->setVisible(false);
     ui->labelFacility->setVisible(false);
     ui->labelMethod->setVisible(false);
     T00.push_back(483.0);
@@ -77,13 +77,17 @@ MainWindow::MainWindow(QWidget *parent) :
     plotsWidget3 = new QWidget;
     Tinit = 3.0;
     deltaTau = 5.0;
-    displayScene = new QGraphicsScene(ui->graphicsView);
+    grScene = new QGraphicsScene(ui->graphicsView);
+    grScene2 = new QGraphicsScene(ui->graphicsView_2);
     //customPlot = new QCustomPlot(plotsWidget2);
     //customPlot2 = new QCustomPlot(plotsWidget3);
+     //MainWindow::setGeometry(100,100,1.1*(plotsWidget->x() + plotsWidget->width()),this->height());
 }
 
 MainWindow::~MainWindow()
 {
+    for(auto &obj: plotsList)
+        delete obj;
     delete Tdata;
     delete plotsWidget;
     delete plotsLayout;
@@ -101,6 +105,8 @@ MainWindow::~MainWindow()
     //delete customPlot;
     //delete customPlot2;
     delete ui;
+    delete grScene;
+    delete grScene2;
 }
 
 void MainWindow::on_action_triggered()
@@ -265,12 +271,20 @@ void MainWindow::getInitialInfoFromFile()
     ui->labelNumDisplay->setGeometry(ui->graphicsView->x()+115,ui->graphicsView->y()+ui->graphicsView->height()+ui->horizontalSlider->height(),ui->labelNumDisplay->width(),ui->labelNumDisplay->height());
     ui->labelTimeDisplay->setGeometry(ui->graphicsView->x()+158,ui->graphicsView->y()+ui->graphicsView->height()+ui->horizontalSlider->height(),ui->labelTimeDisplay->width(),ui->labelTimeDisplay->height());
     //MainWindow::setWidth(ui->graphicsView->x()+ui->graphicsView->width()+10);
-    MainWindow::setGeometry(MainWindow::x(),MainWindow::y(),ui->graphicsView->x()+ui->graphicsView->width()+25,ui->graphicsView->y()+ui->graphicsView->height()+100);
+    MainWindow::setGeometry(MainWindow::x(),MainWindow::y(),ui->graphicsView->x()+ui->graphicsView->width()+60+ui->graphicsView_2->width(),ui->graphicsView->y()+ui->graphicsView->height()+150);
     ui->cutButton->setEnabled(true);
     ui->putMarks->setEnabled(true);
     //ui->pushButton_2->setEnabled(true);
     ui->Play->setEnabled(false);
-    ui->qCalcButton->setEnabled(false);
+    //ui->qCalcButton->setEnabled(true);
+    ui->processingMethodButton->setEnabled(true);
+    ui->graphicsView_2->setGeometry(ui->graphicsView->x()+ui->graphicsView->width()+10,ui->graphicsView->y(),15,ui->graphicsView->height());
+    ui->TminDisplay->setGeometry(ui->graphicsView_2->x()+ui->graphicsView_2->width()+10,ui->graphicsView_2->y()+ui->graphicsView_2->height()-20,35,35);
+    ui->TminDisplay->setText(QString::number(Tmin));
+    ui->TmaxDisplay->setGeometry(ui->graphicsView_2->x()+ui->graphicsView_2->width()+10,ui->graphicsView_2->y()-15,35,35);
+    ui->TmaxDisplay->setText(QString::number(Tmax));
+
+    ui->graphicsView_2->setVisible(true);
 }
 
 void MainWindow::writeTemperatureToTecplot()
@@ -314,7 +328,6 @@ void MainWindow::writeTemperatureToTecplot()
 void MainWindow::createCharData()
 {
     int i, j, k, kk=0;
-    assert(Tmax != Tmin);
     float deltaColor = 256/(Tmax - Tmin);
     Tdata = new uchar[myWidth*myLength*timeNum];
 
@@ -336,8 +349,6 @@ void MainWindow::mousePressEvent(QMouseEvent *event)
     //if (event->x() > 130 && event->x() < 130+ui->graphicsView->width() && event->y() > 30 && event->y() < 50+ui->graphicsView->height() && (ui->putMarks->text() == "Завершить"))
     if (event->x() > ui->graphicsView->x() && event->x() < ui->graphicsView->x()+ui->graphicsView->width() && event->y() > 30 && event->y() < 50+ui->graphicsView->height() && (ui->putMarks->text() == "Завершить"))
     {
-        //QCustomPlot *customPlot;
-        //QCustomPlot *customPlot2;
         QCustomPlot *customPlot = new QCustomPlot(plotsWidget2);
         QCustomPlot *customPlot2 = new QCustomPlot(plotsWidget3);
         QPoint p;
@@ -348,8 +359,10 @@ void MainWindow::mousePressEvent(QMouseEvent *event)
         double min=1000.0, max=-100.0;
         double minq=1000.0, maxq=-100.0;
         QVector<double> x, y, y2, qSet;
+
         p.setX(event->pos().x()-ui->graphicsView->x()-2);
         p.setY(event->pos().y()-ui->graphicsView->y()-22);
+
         if(p.x() > 1 && p.x()<myLength -1 - cutLeft - cutRight && p.y() > 1 && p.y() < myWidth-1 - cutUp - cutDown)
         {
             pointsForPlots.push_back(p);
@@ -442,11 +455,12 @@ void MainWindow::mousePressEvent(QMouseEvent *event)
             customPlot->replot();
             plotsList.append(customPlot);
             plotsList.append(customPlot2);
-            plotsList.at(plotsList.size()-1)->show();
-            plotsList.last()->show();
+            //plotsList.at(plotsList.size()-1)->show();
+            //plotsList.last()->show();
 
-            if(plotsList.size() == 2)
+            if(plotsList.length() == 2)
             {
+                //MainWindow::setWidth(1.1*(plotsWidget->x() + plotsWidget->width()));
                 if(ui->graphicsView->y() + ui->graphicsView->height() + ui->horizontalSlider->height() + ui->labelTimeDisplay->height() + 10 > ui->pushButton_2->y()+ui->pushButton_2->height())
                 {
                     ui->scrollArea->setGeometry(ui->scrollArea->x(),40+ui->graphicsView->y()+ui->graphicsView->height()+ui->horizontalSlider->height()+ui->labelNumDisplay->height(),2*viewWidth+50,10+viewHeight);
@@ -454,14 +468,15 @@ void MainWindow::mousePressEvent(QMouseEvent *event)
                     ui->methodsBox->setGeometry(ui->scrollArea->x()+ui->scrollArea->width()*69/100,10+ui->graphicsView->y()+ui->graphicsView->height()+ui->horizontalSlider->height()+ui->labelNumDisplay->height(),ui->methodsBox->width(),ui->methodsBox->height());
                     ui->labelFacility->setGeometry(ui->facilityBox->x()-63,10+ui->graphicsView->y()+ui->graphicsView->height()+ui->horizontalSlider->height()+ui->labelNumDisplay->height(),ui->methodsBox->width(),ui->methodsBox->height());
                     ui->labelMethod->setGeometry(ui->methodsBox->x()-42,10+ui->graphicsView->y()+ui->graphicsView->height()+ui->horizontalSlider->height()+ui->labelNumDisplay->height(),ui->methodsBox->width(),ui->methodsBox->height());
-                    if(3*viewWidth > ui->graphicsView->x()+ui->graphicsView->width())
-                        MainWindow::setGeometry(350,40,ui->graphicsView->x()+ui->graphicsView->width()+10,40+ui->graphicsView->y()+ui->graphicsView->height()+ui->horizontalSlider->height()+ui->labelNumDisplay->height()+2*viewHeight+90);
+                    //if(3*viewWidth > ui->graphicsView->x()+ui->graphicsView->width())
+                    if(ui->graphicsView->x() + ui->graphicsView->width() < plotsWidget->x() + plotsWidget->width())
+                        MainWindow::setGeometry(MainWindow::x(),MainWindow::y(),1.1*(plotsWidget->x() + plotsWidget->width()),40+ui->graphicsView->y()+ui->graphicsView->height()+ui->horizontalSlider->height()+ui->labelNumDisplay->height()+2*viewHeight+90);
                     else
-                        MainWindow::setGeometry(350,40,2.3*viewWidth,40+ui->graphicsView->y()+ui->graphicsView->height()+ui->horizontalSlider->height()+ui->labelNumDisplay->height()+2*viewHeight+90);
+                        MainWindow::setGeometry(MainWindow::x(),MainWindow::y(),2.3*viewWidth,40+ui->graphicsView->y()+ui->graphicsView->height()+ui->horizontalSlider->height()+ui->labelNumDisplay->height()+2*viewHeight+90);
                 }
                 else
                 {
-                    MainWindow::setGeometry(350,40,2.3*viewWidth,ui->pushButton_2->y()+ui->pushButton_2->height()+2*viewHeight+150);
+                    MainWindow::setGeometry(MainWindow::x(),MainWindow::y(),2.3*viewWidth,ui->pushButton_2->y()+ui->pushButton_2->height()+2*viewHeight+150);
                     ui->scrollArea->setGeometry(20,300,2*viewWidth+50,10+viewHeight);
                     ui->facilityBox->setGeometry(210,260,ui->facilityBox->width(),ui->facilityBox->height());
                     ui->methodsBox->setGeometry(370,260,ui->methodsBox->width(),ui->methodsBox->height());
@@ -493,7 +508,14 @@ void MainWindow::mousePressEvent(QMouseEvent *event)
         //delete plotsWidget3;
         //delete customPlot;
         //delete customPlot2;
+
+        //if(pointsForPlots.length() == 1 || (ui->graphicsView->x() + ui->graphicsView->width() < plotsWidget->x() + plotsWidget->width()))
+            //if(ui->graphicsView->x() + ui->graphicsView->width() < plotsWidget->x() + plotsWidget->width())
+               //MainWindow::setWidth(1.1*(plotsWidget->x() + plotsWidget->width()));
+
     }
+
+
 }
 
 void MainWindow::processField(int i, int j, int methodFlag)
@@ -932,50 +954,34 @@ void MainWindow::qCalc(int i, int j)
     case(PolynominalFlag):
     {
         i1 = i+(j+0*(myWidth-cutUp-cutDown))*(myLength-cutRight-cutLeft);
-        double b3 = pow(TfieldSmooth[i1],3.0);
+       // double b3 = pow(TfieldSmooth[i1],3.0);
         //double k3 = (b3-pow(Tinit,3.0))/pow(deltaTau,3);
-        double k3 = (b3-pow(Tinit,3.0))/deltaTau;
+        //double k3 = (b3-pow(Tinit,3.0))/deltaTau;
 
-        int tNum;
+        //int tNum;
 
-        tNum = deltaTau/timeArray[1];
-        double temp = timeArray[1]/tNum;
+        //tNum = deltaTau/timeArray[1];
+        //double temp = timeArray[1]/tNum;
 
-        double *localTarray = new double[tNum+timeNum];
-        double *localTimeArray = new double[tNum+timeNum];
+        //double *localTarray = new double[tNum+timeNum];
+        //double *localTimeArray = new double[tNum+timeNum];
 
-        for(k = -tNum; k<0; k++)
-        {
-            localTimeArray[k+tNum] = k*temp;
-            localTarray[k+tNum] = pow(k3*localTimeArray[k]+b3,1.0/3.0);
-        }
-
-        for(k = 0; k<timeNum; k++)
-        {
-            i2 = i+(j+k*(myWidth-cutUp-cutDown))*(myLength-cutRight-cutLeft);
-            localTimeArray[k] = timeArray[k];
-            localTarray[k] = TfieldSmooth[i2];
-        }
-
-        for(k = -tNum; k<timeNum; k++)
+        for(k = 1; k<timeArray.size(); k++)
         {
             qq = 0.0;
             for(int l = 1; l < k+1; l++)
             {
-                i2 = i+(j+(l+tNum)*(myWidth-cutUp-cutDown))*(myLength-cutRight-cutLeft);
-                i1 = i+(j+(l+tNum-1)*(myWidth-cutUp-cutDown))*(myLength-cutRight-cutLeft);
-                qq = qq + (localTarray[k+tNum] - localTarray[k+tNum-1])/(sqrt(localTimeArray[timeNum+tNum-1] - localTimeArray[l+tNum]) + sqrt(localTimeArray[timeNum+tNum-1] - localTimeArray[l+tNum-1]));
+                i2 = i+(j+l*(myWidth-cutUp-cutDown))*(myLength-cutRight-cutLeft);
+                i1 = i+(j+(l-1)*(myWidth-cutUp-cutDown))*(myLength-cutRight-cutLeft);
+                qq = qq + (TfieldSmooth[i2] - TfieldSmooth[i1])/(sqrt(timeArray.last() - timeArray[l]) + sqrt(timeArray.last() - timeArray[l-1]));
             }
 
-            if(k>0)
-            {
-                i1 = i+(j+k*(myWidth-cutUp-cutDown))*(myLength-cutRight-cutLeft);
-                q[i1] = qq*qCalcCoef;
-            }
+            i1 = i+(j+k*(myWidth-cutUp-cutDown))*(myLength-cutRight-cutLeft);
+            q[i1] = qq*qCalcCoef;
         }
 
-        delete localTarray;
-        delete localTimeArray;
+        //delete localTarray;
+        //delete localTimeArray;
         break;
     }
 
@@ -1062,12 +1068,14 @@ double MainWindow::erfc(double x)
 
     do
     {
-        mult *= -x*x/++n;
+        n++;
+        mult *= -x*x/n;
         memb = x/(2*n+1)*mult;
         sum += memb;
     }while(fabs(memb) >= eps);
 
-    return 1.- 2./sqrt(M_PI)*sum;
+    return 1- 2/sqrt(M_PI)*sum;
+
 }
 
 double MainWindow::fTheta(double x, double alpha)
@@ -1111,16 +1119,21 @@ void MainWindow::setWidth(float w)
 
 void MainWindow::displayField(int timeMoment)
 {
-    //QGraphicsScene *scene = new QGraphicsScene(ui->graphicsView);
+    delete grScene;
+    delete grScene2;
+    grScene = new QGraphicsScene(ui->graphicsView);
+    grScene2 = new QGraphicsScene(ui->graphicsView_2);
     QColor color;
     QPixmap pic;
     QVector<QRgb> color_table;
     int i=0, j=0, k=0;
     uchar *localTdata;
     double rad = 1.4;
+    uchar *tempRange;
 
     if(!(ui->cutButton->text() == "Обрезать"))
     {
+        //grScene->setSceneRect(0,0,10,10);
         localTdata = new uchar[myWidth*myLength];
 
         for(j = 0; j < myWidth; j++)
@@ -1144,7 +1157,7 @@ void MainWindow::displayField(int timeMoment)
     else
     {
         localTdata = new uchar[(myLength - cutLeft - cutRight)*(myWidth - cutUp - cutDown)];
-
+        //grScene->setSceneRect(0,0,ui->graphicsView->width(),ui->graphicsView->height());
         for(j = cutUp; j < myWidth - cutDown; j++)
         {
             for(i = cutLeft; i < myLength - cutRight; i++)
@@ -1163,18 +1176,46 @@ void MainWindow::displayField(int timeMoment)
         img.setColorTable(color_table);
         pic.convertFromImage(img);
     }
-    displayScene->addPixmap(pic);
+    grScene->addPixmap(pic);
 
     if(!pointsForPlots.isEmpty())
     {
         for(i=0; i<pointsForPlots.size(); i++)
         {
-            displayScene->addEllipse(pointsForPlots.at(i).x()-rad, pointsForPlots.at(i).y()-rad, rad*2.0, rad*2.0, QPen(), QBrush(Qt::SolidPattern));
+            grScene->addEllipse(pointsForPlots.at(i).x()-rad, pointsForPlots.at(i).y()-rad, rad*2.0, rad*2.0, QPen(), QBrush(Qt::SolidPattern));
         }
     }
 
-    ui->graphicsView->setScene(displayScene);
-    delete localTdata;
+    tempRange = new uchar[ui->graphicsView_2->height()*ui->graphicsView_2->width()];
+
+    k = 0;
+    int h = ui->graphicsView_2->height();
+    int w = ui->graphicsView_2->width();
+
+    for(j = 0; j < w; ++j)
+    {
+        for(i = 0; i < h; ++i)
+        {
+            tempRange[k] = j*h/256;
+            k++;
+        }
+    }
+
+    QImage img2(localTdata,w,h, QImage::Format_Indexed8);
+    color_table.clear();
+    for(i = 0; i < 256; i++)
+    {
+        color.setHsv(255-i,255,255);
+        color_table.append(qRgb(color.red(),color.green(),color.blue()));
+    }
+    img2.setColorTable(color_table);
+    pic.convertFromImage(img2);
+    grScene2->addPixmap(pic);
+
+    ui->graphicsView->setScene(grScene);
+    ui->graphicsView_2->setScene(grScene2);
+    delete [] localTdata;
+    delete [] tempRange;
 }
 
 void MainWindow::on_pushButton_2_clicked()
@@ -1211,9 +1252,17 @@ void MainWindow::on_horizontalSlider_valueChanged(int position)
 
 void MainWindow::on_cutButton_clicked()
 {
+
+
+    //ui->graphicsView_2->setGeometry(-100,-100,15,ui->graphicsView->height());
+
     if(ui->cutButton->text() == "Обрезать")
     {
         ui->cutButton->setText("Завершить");
+        //ui->graphicsView_2->setGeometry(-100,-100,15,ui->graphicsView->height());
+        ui->graphicsView_2->setVisible(false);
+        ui->TmaxDisplay->setVisible(false);
+        ui->TminDisplay->setVisible(false);
         ui->putMarks->setDisabled(true);
         ui->pushButton_2->setDisabled(true);
         hWid->setGeometry(ui->graphicsView->x()+frameThickness/2,ui->graphicsView->y()-frameThickness/2,myLength,24);
@@ -1237,6 +1286,7 @@ void MainWindow::on_cutButton_clicked()
     }
     else
     {
+        ui->cutButton->setText("Обрезать");
         ui->putMarks->setDisabled(false);
         //ui->pushButton_2->setDisabled(false);
         ui->line->setVisible(false);
@@ -1250,14 +1300,60 @@ void MainWindow::on_cutButton_clicked()
         setCutsRelation();
         ui->graphicsView->setFixedWidth(myLength-cutRight-cutLeft+frameThickness);
         ui->graphicsView->setFixedHeight(myWidth-cutUp-cutDown+frameThickness);
-        ui->cutButton->setText("Обрезать");
         ui->cutButton->setEnabled(false);
-        displayField(ui->horizontalSlider->value());
         ui->horizontalSlider->setValue(ui->horizontalSlider->value());
         ui->horizontalSlider->setGeometry(ui->graphicsView->x(),ui->graphicsView->y()+ui->graphicsView->height()+5,ui->graphicsView->width(),ui->horizontalSlider->height());
         ui->labelNumDisplay->setGeometry(ui->graphicsView->x()+ui->graphicsView->width()*45/100-43,ui->graphicsView->y()+ui->graphicsView->height()+ui->horizontalSlider->height(),ui->labelNumDisplay->width(),ui->labelNumDisplay->height());
         ui->labelTimeDisplay->setGeometry(ui->graphicsView->x()+ui->graphicsView->width()*45/100,ui->graphicsView->y()+ui->graphicsView->height()+ui->horizontalSlider->height(),ui->labelTimeDisplay->width(),ui->labelTimeDisplay->height());
+
+        int i, j, k, kk=0;
+        float min = 1000.0;
+        float max = 0.0;
+
+        for(k = 0; k < timeNum; k++)
+        {
+            for(j = cutUp; j < myWidth - cutDown; j++)
+            {
+                for(i = cutLeft; i < myLength - cutRight; i++)
+                {
+                    if(Tfield[i+(j+k*myWidth)*myLength] <= min)
+                        min = Tfield[i+(j+k*myWidth)*myLength];
+                    if(Tfield[i+(j+k*myWidth)*myLength] >= max)
+                        max = Tfield[i+(j+k*myWidth)*myLength];
+                }
+            }
+        }
+
+        Tmin = min;
+        Tmax = max;
+
+        float deltaColor = 256/(Tmax - Tmin);
+        //Tdata = new uchar[myWidth*myLength*timeNum];
+
+        for(k = 0; k < timeNum; k++)
+        {
+            for(j = 0; j < myWidth; j++)
+            {
+                for(i = 0; i < myLength; i++)
+                {
+                    Tdata[kk] = (int)((Tfield[i+(j+k*myWidth)*myLength] - Tmin)*deltaColor);
+                    kk++;
+                }
+            }
+        }
+
+        ui->graphicsView_2->setVisible(true);
+        ui->TmaxDisplay->setVisible(true);
+        ui->TminDisplay->setVisible(true);
     }
+
+    ui->graphicsView_2->setGeometry(ui->graphicsView->x()+ui->graphicsView->width()+10,ui->graphicsView->y(),15,ui->graphicsView->height());
+    ui->TminDisplay->setGeometry(ui->graphicsView_2->x()+ui->graphicsView_2->width()+10,ui->graphicsView_2->y()+ui->graphicsView_2->height()-20,35,35);
+    ui->TminDisplay->setText(QString::number(Tmin));
+    ui->TmaxDisplay->setGeometry(ui->graphicsView_2->x()+ui->graphicsView_2->width()+10,ui->graphicsView_2->y()-15,35,35);
+    ui->TmaxDisplay->setText(QString::number(Tmax));
+
+    displayField(ui->horizontalSlider->value());   
 }
 
 void MainWindow::setCutsRelation()
@@ -1385,7 +1481,7 @@ void MainWindow::on_putMarks_clicked()
         createSmoothField();
         ui->cutButton->setDisabled(true);
         ui->pushButton_2->setDisabled(true);
-        pointsForPlots.clear();
+        //pointsForPlots.clear();
         displayField(ui->horizontalSlider->value());
         ui->graphicsView->setCursor(Qt::CrossCursor);
         ui->action_2->setDisabled(true);
@@ -1415,14 +1511,14 @@ void MainWindow::on_facilityName_changed()
     if(ui->facilityBox->currentIndex() == 0)
     {
         ui->methodsBox->clear();
-        QStringList lst("LowPass");
+        QStringList lst;
+        lst << "LowPass" << "Polynominal";
         ui->methodsBox->addItems(lst);
     }
     else
     {
         ui->methodsBox->clear();
-        QStringList lst;
-        lst << "LowPass" << "Polynominal" << "ERFC";
+        QStringList lst("ERFC");
         ui->methodsBox->addItems(lst);
     }
 }
@@ -1436,14 +1532,29 @@ void MainWindow::on_processingMethodButton_clicked()
         ui->processingMethodButton->setText("Завершить");
         timeArrayERFC = new double[(myWidth-cutUp-cutDown)*(myLength-cutRight-cutLeft)*10];
         TFieldERFC = new double[(myWidth-cutUp-cutDown)*(myLength-cutRight-cutLeft)*10];
+        ui->facilityBox->setGeometry(ui->scrollArea->x()+ui->scrollArea->width()*22/50,10+ui->graphicsView->y()+ui->graphicsView->height()+ui->horizontalSlider->height()+ui->labelNumDisplay->height(),ui->facilityBox->width(),ui->facilityBox->height());
+        ui->methodsBox->setGeometry(ui->scrollArea->x()+ui->scrollArea->width()*69/100,10+ui->graphicsView->y()+ui->graphicsView->height()+ui->horizontalSlider->height()+ui->labelNumDisplay->height(),ui->methodsBox->width(),ui->methodsBox->height());
+        ui->labelFacility->setGeometry(ui->facilityBox->x()-63,10+ui->graphicsView->y()+ui->graphicsView->height()+ui->horizontalSlider->height()+ui->labelNumDisplay->height(),ui->methodsBox->width(),ui->methodsBox->height());
+        ui->labelMethod->setGeometry(ui->methodsBox->x()-42,10+ui->graphicsView->y()+ui->graphicsView->height()+ui->horizontalSlider->height()+ui->labelNumDisplay->height(),ui->methodsBox->width(),ui->methodsBox->height());
+
+        ui->facilityBox->setVisible(true);
+        ui->methodsBox->setVisible(true);
+        ui->labelFacility->setVisible(true);
+        ui->labelMethod->setVisible(true);
+        ui->cutButton->setDisabled(true);
+        ui->putMarks->setDisabled(true);
+        ui->qCalcButton->setDisabled(true);
     }
     else
     {
         ui->facilityBox->setDisabled(true);
         ui->methodsBox->setDisabled(true);
         ui->processingMethodButton->setText("Выбрать метод обработки");
-        ui->processingMethodButton->setDisabled(true);
+        //ui->processingMethodButton->setDisabled(true);
         ui->qCalcButton->setEnabled(true);
+        //ui->cutButton->setDisabled(false);
+        ui->putMarks->setDisabled(false);
+        ui->qCalcButton->setDisabled(false);
     }
 }
 
@@ -1474,6 +1585,8 @@ void MainWindow::on_action_2_triggered()
     connect(rhoEdit,SIGNAL(editingFinished()),this,SLOT(setRho( )),Qt::UniqueConnection);
     connect(CpEdit,SIGNAL(editingFinished()),this,SLOT(setCp( )),Qt::UniqueConnection);
     connect(lambdaEdit,SIGNAL(editingFinished()),this,SLOT(setLambda( )),Qt::UniqueConnection);
+    if(!plotsLayout->isEmpty())
+        replot();
 }
 
 void MainWindow::setRho( )
@@ -1483,6 +1596,8 @@ void MainWindow::setRho( )
         rho = str.toDouble();
     kCoef = rho*Cp*lambda;
     qCalcCoef = 2*sqrt(kCoef/M_PI);
+    if(!plotsLayout->isEmpty())
+        replot();
 }
 
 void MainWindow::setCp()
@@ -1492,6 +1607,8 @@ void MainWindow::setCp()
         Cp = str.toDouble();
     kCoef = rho*Cp*lambda;
     qCalcCoef = 2*sqrt(kCoef/M_PI);
+    if(!plotsLayout->isEmpty())
+        replot();
 }
 
 void MainWindow::setLambda( )
@@ -1501,6 +1618,8 @@ void MainWindow::setLambda( )
         lambda = str.toDouble();
     kCoef = rho*Cp*lambda;
     qCalcCoef = 2*sqrt(kCoef/M_PI);
+    if(!plotsLayout->isEmpty())
+        replot();
 }
 
 void MainWindow::on_methodsBox_currentIndexChanged(int index)
@@ -1519,22 +1638,29 @@ void MainWindow::replot()
     QVector<double> x, y, y2, qSet;
 
     //plotsList.clear();
-    for(int ii = 1; ii<pointsForPlots.length(); ii+=2)
-    //for(auto &ii : pointsForPlots)
+    for(int ii = 0; ii<pointsForPlots.length(); ii++)
     {
+        min=1000.0, max=-100.0;
+        minq=1000.0, maxq=-100.0;
+        int i1 = 2*ii;
+        int i2 = 2*ii + 1;
+        plotsList[i1]->clearGraphs();
+        plotsList[i2]->clearGraphs();
+        //delete plotsList[ii];
+        //delete plotsList[ii+1];
         //QCustomPlot *customPlot = new QCustomPlot;
         //QCustomPlot *customPlot2 = new QCustomPlot;
-        //pointsForPlots[ii].
+        //customPlot->
         x.clear();
         y.clear();
         y2.clear();
         qSet.clear();
-        int i = pointsForPlots[ii-1].x();
-        int j = pointsForPlots[ii-1].y();
+        int i = pointsForPlots[ii].x();
+        int j = pointsForPlots[ii].y();
         //qDebug() << "we are here";
         for (int k=0; k<timeArray.size(); k++)
         {
-          x.push_back(timeArray.at(k));
+          x.push_back(timeArray[k]);
           y.push_back(Tfield[i+(j+k*myWidth)*myLength]);
 
           if(min >= y.at(k))
@@ -1543,16 +1669,25 @@ void MainWindow::replot()
               max = y.at(k);
         }
 
-        plotsList[ii-1]->removeGraph(0);
-        plotsList[ii-1]->removeGraph(0);
-        plotsList[ii-1]->addGraph();
-        plotsList[ii-1]->graph(0)->setData(x, y);
-        plotsList[ii-1]->graph(0)->setPen(pen);
-        plotsList[ii-1]->graph(0)->setLineStyle(QCPGraph::lsNone);
-        plotsList[ii-1]->graph(0)->setScatterStyle(QCPScatterStyle(QCPScatterStyle::ssCrossSquare, 4));
+        plotsList[i1]->addGraph();
+        plotsList[i1]->graph(0)->setData(x, y);
+        plotsList[i1]->graph(0)->setPen(pen);
+        plotsList[i1]->graph(0)->setLineStyle(QCPGraph::lsNone);
+        plotsList[i1]->graph(0)->setScatterStyle(QCPScatterStyle(QCPScatterStyle::ssCrossSquare, 4));
         std::stringstream str;
-        str << "Point №" << ii-1;
-        plotsList[ii-1]->graph(0)->setName(str.str().c_str());
+        str << "Point №" << ii+1;
+        plotsList[i1]->graph(0)->setName(str.str().c_str());
+
+        /*customPlot->removeGraph(0);
+        customPlot->removeGraph(0);
+        customPlot->addGraph();
+        customPlot->graph(0)->setData(x, y);
+        customPlot->graph(0)->setPen(pen);
+        customPlot->graph(0)->setLineStyle(QCPGraph::lsNone);
+        customPlot->graph(0)->setScatterStyle(QCPScatterStyle(QCPScatterStyle::ssCrossSquare, 4));
+        std::stringstream str;
+        str << "Point №" << ii+1;
+        customPlot->graph(0)->setName(str.str().c_str());*/
 
         switch(ui->methodsBox->currentIndex())
         {
@@ -1567,7 +1702,9 @@ void MainWindow::replot()
                 break;
         }
 
-        plotsList[ii-1]->addGraph();
+        plotsList[i1]->addGraph();
+
+        //customPlot->addGraph();
         processField(i,j,ui->methodsBox->currentIndex());
         qCalc(i,j);
 
@@ -1581,41 +1718,76 @@ void MainWindow::replot()
                 maxq = qSet.at(k);
         }
 
-        plotsList[ii-1]->graph(1)->setData(x, y2);
-        plotsList[ii-1]->graph(1)->setPen(pen2);
-        plotsList[ii-1]->graph(1)->setName(str.str().c_str());
-        plotsList[ii]->removeGraph(0);
-        plotsList[ii]->addGraph();
-        plotsList[ii]->graph(0)->setData(x, qSet);
-        plotsList[ii]->graph(0)->setPen(pen);
-        plotsList[ii]->graph(0)->setName(str.str().c_str());
-        plotsList[ii]->axisRect()->insetLayout()->setInsetAlignment(0, (Qt::AlignBottom|Qt::AlignRight));
-        plotsList[ii]->legend->setVisible(true);
-        plotsList[ii]->xAxis->setLabel("t, с");
-        plotsList[ii]->yAxis->setLabel("q, Вт/м2");
-        plotsList[ii]->xAxis->setRange(timeArray.first(), timeArray.last());
-        plotsList[ii]->yAxis->setRange(minq, maxq);
+        plotsList[i1]->graph(1)->setData(x, y2);
+        plotsList[i1]->graph(1)->setData(x, y2);
+        plotsList[i1]->graph(1)->setPen(pen2);
+        plotsList[i1]->graph(1)->setName(str.str().c_str());
+
+        //plotsList[ii+1]->removeGraph(0);
+        plotsList[i2]->addGraph();
+        plotsList[i2]->graph(0)->setData(x, qSet);
+        plotsList[i2]->graph(0)->setPen(pen);
+        plotsList[i2]->graph(0)->setName(str.str().c_str());
+        plotsList[i2]->axisRect()->insetLayout()->setInsetAlignment(0, (Qt::AlignBottom|Qt::AlignRight));
+        plotsList[i2]->legend->setVisible(true);
+        plotsList[i2]->xAxis->setLabel("t, с");
+        plotsList[i2]->yAxis->setLabel("q, Вт/м2");
+        plotsList[i2]->xAxis->setRange(timeArray.first(), timeArray.last());
+        plotsList[i2]->yAxis->setRange(minq, maxq);
         //customPlot2->setGeometry(10+ (10+viewWidth)*((pointsForPlots.size()-1)%2),10+ (10+viewHeight)*((pointsForPlots.size()-1) - ((pointsForPlots.size()-1)%2))/2,viewWidth,viewHeight);
-        plotsList[ii]->replot();
+        plotsList[i2]->replot();
 
-        plotsList[ii-1]->axisRect()->insetLayout()->setInsetAlignment(0, (Qt::AlignBottom|Qt::AlignRight));
-        plotsList[ii-1]->legend->setVisible(true);
-        plotsList[ii-1]->xAxis->setLabel("t, с");
-        plotsList[ii-1]->yAxis->setLabel("T, °C");
-        plotsList[ii-1]->xAxis->setRange(timeArray.first(), timeArray.last());
-        plotsList[ii-1]->yAxis->setRange(min-5, max+5);
+        /*customPlot->graph(1)->setData(x, y2);
+        customPlot->graph(1)->setPen(pen2);
+        customPlot->graph(1)->setName(str.str().c_str());
+        customPlot2->removeGraph(0);
+        customPlot2->addGraph();
+        customPlot2->graph(0)->setData(x, qSet);
+        customPlot2->graph(0)->setPen(pen);
+        customPlot2->graph(0)->setName(str.str().c_str());
+        customPlot2->axisRect()->insetLayout()->setInsetAlignment(0, (Qt::AlignBottom|Qt::AlignRight));
+        customPlot2->legend->setVisible(true);
+        customPlot2->xAxis->setLabel("t, с");
+        customPlot2->yAxis->setLabel("q, Вт/м2");
+        customPlot2->xAxis->setRange(timeArray.first(), timeArray.last());
+        customPlot2->yAxis->setRange(minq, maxq);
+        //customPlot2->setGeometry(10+ (10+viewWidth)*((pointsForPlots.size()-1)%2),10+ (10+viewHeight)*((pointsForPlots.size()-1) - ((pointsForPlots.size()-1)%2))/2,viewWidth,viewHeight);
+        customPlot2->replot();*/
+
+        plotsList[i1]->axisRect()->insetLayout()->setInsetAlignment(0, (Qt::AlignBottom|Qt::AlignRight));
+        plotsList[i1]->legend->setVisible(true);
+        plotsList[i1]->xAxis->setLabel("t, с");
+        plotsList[i1]->yAxis->setLabel("T, °C");
+        plotsList[i1]->xAxis->setRange(timeArray.first(), timeArray.last());
+        plotsList[i1]->yAxis->setRange(min-5, max+5);
         //customPlot->setGeometry(10+ (10+viewWidth)*((pointsForPlots.size()-1)%2),10+ (10+viewHeight)*((pointsForPlots.size()-1) - ((pointsForPlots.size()-1)%2))/2,viewWidth,viewHeight);
-        plotsList[ii-1]->replot();
-        plotsList[ii]->replot();
-        plotsList[ii-1]->setMinimumSize(viewWidth,viewHeight);
-        plotsList[ii]->setMinimumSize(viewWidth,viewHeight);
-        plotsList[ii-1]->show();
-        plotsList[ii]->show();
+        plotsList[i1]->replot();
+        plotsList[i1]->setMinimumSize(viewWidth,viewHeight);
+        plotsList[i2]->setMinimumSize(viewWidth,viewHeight);
+        plotsList[i1]->show();
+        plotsList[i2]->show();
 
-        //plotsLayout->addWidget(customPlot,ii,0);
-        //plotsLayout->addWidget(customPlot2,ii,1);
-        //plotsWidget->setLayout(plotsLayout);
-        //ui->scrollArea->setWidget(plotsWidget);
+
+
+       /* customPlot->axisRect()->insetLayout()->setInsetAlignment(0, (Qt::AlignBottom|Qt::AlignRight));
+        customPlot->legend->setVisible(true);
+        customPlot->xAxis->setLabel("t, с");
+        customPlot->yAxis->setLabel("T, °C");
+        customPlot->xAxis->setRange(timeArray.first(), timeArray.last());
+        customPlot->yAxis->setRange(min-5, max+5);
+        //customPlot->setGeometry(10+ (10+viewWidth)*((pointsForPlots.size()-1)%2),10+ (10+viewHeight)*((pointsForPlots.size()-1) - ((pointsForPlots.size()-1)%2))/2,viewWidth,viewHeight);
+        customPlot->replot();
+        customPlot->setMinimumSize(viewWidth,viewHeight);
+        customPlot2->setMinimumSize(viewWidth,viewHeight);
+        customPlot->show();
+        customPlot2->show();
+        //plotsList.append(customPlot);
+        //plotsList.append(customPlot2);*/
+
+        /*plotsLayout->addWidget(customPlot,ii,0);
+        plotsLayout->addWidget(customPlot2,ii,1);
+        plotsWidget->setLayout(plotsLayout);
+        ui->scrollArea->setWidget(plotsWidget);*/
 
        // for(ii = 0; ii < pointsForPlots.size(); ii++)
        // {

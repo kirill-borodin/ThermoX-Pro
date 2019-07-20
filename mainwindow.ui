@@ -6,8 +6,8 @@
    <rect>
     <x>0</x>
     <y>0</y>
-    <width>614</width>
-    <height>525</height>
+    <width>766</width>
+    <height>461</height>
    </rect>
   </property>
   <property name="windowTitle">
@@ -219,7 +219,8 @@
         </sizepolicy>
        </property>
        <property name="text">
-        <string>Вычислить тепловые потоки</string>
+        <string>Вычислить тепловые потоки
+и записать в Tecplot</string>
        </property>
       </widget>
      </item>
@@ -227,12 +228,6 @@
       <widget class="QPushButton" name="pushButton_2">
        <property name="enabled">
         <bool>false</bool>
-       </property>
-       <property name="sizePolicy">
-        <sizepolicy hsizetype="Minimum" vsizetype="Preferred">
-         <horstretch>0</horstretch>
-         <verstretch>0</verstretch>
-        </sizepolicy>
        </property>
        <property name="text">
         <string>Записать в Tecplot</string>
@@ -310,13 +305,49 @@
      <string>Метод:</string>
     </property>
    </widget>
+   <widget class="QLabel" name="TmaxDisplay">
+    <property name="geometry">
+     <rect>
+      <x>550</x>
+      <y>10</y>
+      <width>71</width>
+      <height>21</height>
+     </rect>
+    </property>
+    <property name="text">
+     <string/>
+    </property>
+   </widget>
+   <widget class="QLabel" name="TminDisplay">
+    <property name="geometry">
+     <rect>
+      <x>550</x>
+      <y>330</y>
+      <width>71</width>
+      <height>21</height>
+     </rect>
+    </property>
+    <property name="text">
+     <string/>
+    </property>
+   </widget>
+   <widget class="QGraphicsView" name="graphicsView_2">
+    <property name="geometry">
+     <rect>
+      <x>520</x>
+      <y>20</y>
+      <width>16</width>
+      <height>321</height>
+     </rect>
+    </property>
+   </widget>
   </widget>
   <widget class="QMenuBar" name="menuBar">
    <property name="geometry">
     <rect>
      <x>0</x>
      <y>0</y>
-     <width>614</width>
+     <width>766</width>
      <height>21</height>
     </rect>
    </property>

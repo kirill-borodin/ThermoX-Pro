@@ -30,6 +30,7 @@ class MainWindow : public QMainWindow//, QListWidget
 
 public:
     explicit MainWindow(QWidget *parent = 0);//{loadingTfieldOneMoreTime = 0;};
+    QGraphicsScene *grScene, *grScene2;
     ~MainWindow();
     QString openFileName;
     int myLength;
@@ -54,12 +55,11 @@ public:
     int timeNum;
     float Tmax, Tmin, Tinit;
     QVector<double> T00;
-    int stride;//количество байт в одной строке изображения
+    //int stride;//количество байт в одной строке изображения
     uchar *Tdata;
     bool loadingTfieldOneMoreTime;
     QVector<QPoint> pointsForPlots;
-    //QList<QCustomPlot*> *plotsList;
-    QVector<QCustomPlot*> plotsList;
+    QList<QCustomPlot*> plotsList;
     DoubleSliderWidget *hWid;
     DoubleSliderWidgetVert *vWid;
     QWidget *plotsWidget;
@@ -76,8 +76,7 @@ public:
     QWidget *plotsWidget3;
     //QCustomPlot *customPlot;
     //QCustomPlot *customPlot2;
-   // QVector<QCustomPlot> plotsVector;
-    QGraphicsScene *displayScene;
+    QVector<QCustomPlot> plotsVector;
 private slots:
     void on_action_triggered();
 
