@@ -6,8 +6,8 @@
    <rect>
     <x>0</x>
     <y>0</y>
-    <width>766</width>
-    <height>461</height>
+    <width>768</width>
+    <height>533</height>
    </rect>
   </property>
   <property name="windowTitle">
@@ -224,16 +224,6 @@
        </property>
       </widget>
      </item>
-     <item>
-      <widget class="QPushButton" name="pushButton_2">
-       <property name="enabled">
-        <bool>false</bool>
-       </property>
-       <property name="text">
-        <string>Записать в Tecplot</string>
-       </property>
-      </widget>
-     </item>
     </layout>
    </widget>
    <widget class="QScrollArea" name="scrollArea">
@@ -331,14 +321,17 @@
      <string/>
     </property>
    </widget>
-   <widget class="QGraphicsView" name="graphicsView_2">
+   <widget class="QLabel" name="TmidDisplay">
     <property name="geometry">
      <rect>
-      <x>520</x>
-      <y>20</y>
-      <width>16</width>
-      <height>321</height>
+      <x>550</x>
+      <y>160</y>
+      <width>71</width>
+      <height>21</height>
      </rect>
+    </property>
+    <property name="text">
+     <string/>
     </property>
    </widget>
   </widget>
@@ -347,7 +340,7 @@
     <rect>
      <x>0</x>
      <y>0</y>
-     <width>766</width>
+     <width>768</width>
      <height>21</height>
     </rect>
    </property>
@@ -369,6 +362,7 @@
     <property name="title">
      <string>Настройки</string>
     </property>
+    <addaction name="flowParamsAction"/>
     <addaction name="action_2"/>
    </widget>
    <addaction name="menuThermoX_Pro"/>
@@ -400,6 +394,11 @@
    </property>
    <property name="text">
     <string>Свойства материала</string>
+   </property>
+  </action>
+  <action name="flowParamsAction">
+   <property name="text">
+    <string>Параметры потока</string>
    </property>
   </action>
  </widget>

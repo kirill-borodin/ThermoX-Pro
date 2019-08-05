@@ -30,7 +30,8 @@ class MainWindow : public QMainWindow//, QListWidget
 
 public:
     explicit MainWindow(QWidget *parent = 0);//{loadingTfieldOneMoreTime = 0;};
-    QGraphicsScene *grScene, *grScene2;
+    QGraphicsScene *grScene;
+    QLabel *rangeLabel;
     ~MainWindow();
     QString openFileName;
     int myLength;
@@ -46,16 +47,16 @@ public:
     QVector<float> TfieldSmooth;//x y t
     QVector<float> q;//x y t
     QVector<double> timeArray;
-    //QVector<double> timeArrayERFC;
-    double *timeArrayERFC;
+    //double *timeArrayERFC;
+    double timeArrayERFC[20];
+    double *tau0;
     double *TFieldERFC;
     double rho, Cp, lambda, kCoef, deltaTau, qCalcCoef;
     float lambda1;
     float lambda2;
     int timeNum;
     float Tmax, Tmin, Tinit;
-    QVector<double> T00;
-    //int stride;//количество байт в одной строке изображения
+    float T00, alpha0;
     uchar *Tdata;
     bool loadingTfieldOneMoreTime;
     QVector<QPoint> pointsForPlots;
@@ -64,14 +65,19 @@ public:
     DoubleSliderWidgetVert *vWid;
     QWidget *plotsWidget;
     QDialog *settingsDialog;
+    QDialog *flowParamsDialog;
     QGridLayout *plotsLayout;
     //float ***Tfield;
     QLineEdit *rhoEdit;
     QLineEdit *CpEdit;
     QLineEdit *lambdaEdit;
+    QLineEdit *T00Edit;
+    QLineEdit *alpha0Edit;
     QLabel *rhoLabel;
     QLabel *CpLabel;
     QLabel *lambdaLabel;
+    QLabel *T00Label;
+    QLabel *alpha0Label;
     QWidget *plotsWidget2;
     QWidget *plotsWidget3;
     //QCustomPlot *customPlot;
@@ -91,8 +97,9 @@ private slots:
     void setLength(float l);
 
     void displayField(int timeMoment);
+    void displayTRange();
 
-    void on_pushButton_2_clicked();
+    //void on_pushButton_2_clicked();
 
     //void on_Play_clicked();
 
@@ -112,7 +119,7 @@ private:
     void createCharData();
     void mousePressEvent(QMouseEvent *event);
     void processField(int i, int j, int methodFlag);
-    void qCalc(int i, int j);
+    void qCalc(int i, int j, int methodFlag);
     double erfc(double x);
     double fTheta(double x, double alpha);
 signals:
@@ -129,8 +136,12 @@ private slots:
     void setRho( );
     void setCp( );
     void setLambda();
-    void on_methodsBox_currentIndexChanged(int index);
+    void setT00();
+    void setAlpha0();
     void replot();
+    void on_qCalcButton_clicked();
+    void on_flowParamsAction_triggered();
+    int getPropessingFlag();
 };
 
 #endif // MAINWINDOW_H
