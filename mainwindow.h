@@ -2,11 +2,9 @@
 #define MAINWINDOW_H
 
 #include <QMainWindow>
-//#include <QWidget>
 #include <QFileSystemModel>
 #include <QDir>
 #include <QDebug>
-//#include <QListWidget>
 #include <QMessageBox>
 #include <QFileDialog>
 #include <Qstring>
@@ -47,7 +45,6 @@ public:
     QVector<float> TfieldSmooth;//x y t
     QVector<float> q;//x y t
     QVector<double> timeArray;
-    //double *timeArrayERFC;
     double timeArrayERFC[20];
     double *tau0;
     double *TFieldERFC;
@@ -67,7 +64,6 @@ public:
     QDialog *settingsDialog;
     QDialog *flowParamsDialog;
     QGridLayout *plotsLayout;
-    //float ***Tfield;
     QLineEdit *rhoEdit;
     QLineEdit *CpEdit;
     QLineEdit *lambdaEdit;
@@ -80,51 +76,26 @@ public:
     QLabel *alpha0Label;
     QWidget *plotsWidget2;
     QWidget *plotsWidget3;
-    //QCustomPlot *customPlot;
-    //QCustomPlot *customPlot2;
     QVector<QCustomPlot> plotsVector;
-private slots:
-    void on_action_triggered();
-
-    void on_action_3_triggered();
-
-    //void on_listView_doubleClicked(const QModelIndex &index);
-
-    void slotAboutProgram();
-
-    void setWidth(float w);
-
-    void setLength(float l);
-
-    void displayField(int timeMoment);
-    void displayTRange();
-
-    //void on_pushButton_2_clicked();
-
-    //void on_Play_clicked();
-
-    //void timerTick();
-
-    void on_horizontalSlider_valueChanged(int position);
-    void on_cutButton_clicked();
-    void setCutsRelation();
-    void createSmoothField();
-    //void setMethodFlag(int m);
 private:
     Ui::MainWindow *ui;
-    //QFileSystemModel *model;
+    void setWidth(float w);
+    void setLength(float l);
+    void displayField(int timeMoment);
+    void displayTRange();
     void getInitialInfoFromFile();
     void writeTemperatureToTecplot();
-    //void changeCharData(int l,int w,int Nt);
     void createCharData();
     void mousePressEvent(QMouseEvent *event);
-    void processField(int i, int j, int methodFlag);
-    void qCalc(int i, int j, int methodFlag);
+    void processField(int pointX, int pointY, int methodFlag);
+    void qCalc(int pointX, int pointY, int methodFlag);
     double erfc(double x);
     double fTheta(double x, double alpha);
-signals:
-    void replotNeeded();
+    int getPropessingFlag();
+    void setCutsRelation();
+    void createSmoothField();
 private slots:
+    void redrawPlots();
     void on_valueChangedLeft();
     void on_valueChangedRight();
     void on_valueChangedUp();
@@ -133,15 +104,18 @@ private slots:
     void on_facilityName_changed();
     void on_processingMethodButton_clicked();
     void on_action_2_triggered();
+    void on_qCalcButton_clicked();
+    void on_flowParamsAction_triggered();
+    void on_action_triggered();
+    void on_action_3_triggered();
+    void slotAboutProgram();
+    void on_horizontalSlider_valueChanged(int position);
+    void on_cutButton_clicked();
     void setRho( );
     void setCp( );
     void setLambda();
     void setT00();
     void setAlpha0();
-    void replot();
-    void on_qCalcButton_clicked();
-    void on_flowParamsAction_triggered();
-    int getPropessingFlag();
 };
 
 #endif // MAINWINDOW_H

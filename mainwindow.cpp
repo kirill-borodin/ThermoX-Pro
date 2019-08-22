@@ -37,7 +37,7 @@ MainWindow::MainWindow(QWidget *parent) :
     connect(vWid,SIGNAL(valueChangedUp(int)),this,SLOT(on_valueChangedUp()),Qt::UniqueConnection);
     connect(vWid,SIGNAL(valueChangedDown(int)),this,SLOT(on_valueChangedDown()),Qt::UniqueConnection);
     connect(ui->facilityBox,SIGNAL(currentIndexChanged(int)),this,SLOT(on_facilityName_changed()));
-    connect(ui->methodsBox,SIGNAL(currentIndexChanged(int)),this,SLOT(replot()));
+    connect(ui->methodsBox,SIGNAL(currentIndexChanged(int)),this,SLOT(redrawPlots()));
     ui->line->setVisible(false);
     ui->line_2->setVisible(false);
     ui->line_3->setVisible(false);
@@ -80,25 +80,11 @@ MainWindow::MainWindow(QWidget *parent) :
     qCalcCoef = 2*sqrt(kCoef/M_PI);
     plotsWidget2 = new QWidget;
     plotsWidget3 = new QWidget;
-    Tinit = 3.0;
+    Tinit = 11.0;
     deltaTau = 5.0;
     grScene = new QGraphicsScene(ui->graphicsView);
     rangeLabel = new QLabel(this);
     rangeLabel->setVisible(false);
-    //TFieldERFC = new double[(myWidth)*(myLength)*20];
-    //tau0 = new double[(myWidth)*(myLength)];
-    /*Tdata = nullptr;
-    plotsWidget = nullptr;
-    plotsLayout = nullptr;
-    hWid = nullptr;
-    vWid = nullptr;
-    plotsWidget2 = nullptr;
-    plotsWidget3 = nullptr;
-    grScene = nullptr;
-    rangeLabel = nullptr;
-    flowParamsDialog = nullptr;
-    settingsDialog = nullptr;
-    TFieldERFC = nullptr;*/
 }
 
 MainWindow::~MainWindow()
@@ -367,7 +353,7 @@ void MainWindow::createCharData()
     }
 }
 
-void MainWindow::mousePressEvent(QMouseEvent *event)
+void MainWindow::mousePressEvent(QMouseEvent *event)//Ставим точки на картинке, рисуем графики T(t) и q(t) в этих точках
 {
     if (event->x() > ui->graphicsView->x() + 1 && event->x() < ui->graphicsView->x()+ui->graphicsView->width() - 1 && event->y() > ui->graphicsView->y() + 1 && event->y() < ui->graphicsView->y() - 1+ui->graphicsView->height() && (ui->putMarks->text() == "Завершить"))
     {
@@ -437,8 +423,8 @@ void MainWindow::mousePressEvent(QMouseEvent *event)
             qCalc(i,j,ui->methodsBox->currentIndex());
             for (int k=0; k<timeArray.size(); k++)
             {
-                y2.push_back(TfieldSmooth[i+(j+k*(myWidth-cutUp-cutDown))*(myLength-cutRight-cutLeft)]);
-                qSet.push_back(q[i+(j+k*(myWidth-cutUp-cutDown))*(myLength-cutRight-cutLeft)]);
+                y2.push_back(TfieldSmooth[i+(j+k*(myWidth))*(myLength)]);
+                qSet.push_back(q[i+(j+k*(myWidth))*(myLength)]);
                 if(minq >= qSet.at(k))
                     minq = qSet.at(k);
                 if(maxq <= qSet.at(k))
@@ -523,12 +509,12 @@ void MainWindow::mousePressEvent(QMouseEvent *event)
     }
 }
 
-void MainWindow::processField(int i, int j, int methodFlag)
+void MainWindow::processField(int pointX, int pointY, int methodFlag)//Сглаживаем погрешности температуры разными методами (LowPass - ряд Фурье, обрезание высших гармоник, Polynominal - приближение полиномом, ERFC - приближение готовым решением задачи одномерного прогрева с условием 3 рода)
 {
     QVector<double> x, y;
-    int ii, jj, k;
-    double temp, temp0, temp1;
-    double A[6][6];
+    int i, j, k;
+    double temp;
+    double A[6][6];//Матрицы и столбцы для поиска коэффициентов полинома методом наименьших квадратов
     double left[6][6];
     double b[6];
     double a[6];
@@ -536,7 +522,7 @@ void MainWindow::processField(int i, int j, int methodFlag)
     for (int k=0; k<timeArray.size(); k++)
     {
       x.push_back(timeArray[k]);
-      y.push_back(Tfield[i+(j+k*myWidth)*myLength]);
+      y.push_back(Tfield[pointX+(pointY+k*myWidth)*myLength]);
     }
 
     switch(methodFlag)
@@ -544,12 +530,12 @@ void MainWindow::processField(int i, int j, int methodFlag)
 
     case(LowPassFlag):
         {
-            double lengthFourier = x.last() - x.first();
-            double v0 = (x.size()-1)/2.0/lengthFourier;
-            double kkk, bbb;
+            double lengthFourier = x.last() - x.first();//Максимальная длина волны в разложении по Фурье
+            double v0 = (x.size()-1)/2.0/lengthFourier;//Минимальная частота в наборе гармоник
+            double kLinear, bLinear;//Приближаем линейно нашу зависимость внутри отрезка [x_i, x_i+1]
             QVector<double> aFourier;
 
-            for(int kFreq = 0; kFreq < 2*(x.length()-1); kFreq++)
+            for(int kFreq = 0; kFreq < 2*(x.length()-1); kFreq++)//Разлагаем в ряд Фурье
             {
                 aFourier.push_back(0.0);
                 for(int kTime = 0; kTime < x.length()-1; kTime++)
@@ -560,9 +546,9 @@ void MainWindow::processField(int i, int j, int methodFlag)
                     }
                     else
                     {
-                        kkk = (y.at(kTime+1) - y.at(kTime))/(x.at(kTime+1) - x.at(kTime));
-                        bbb = y.at(kTime) - kkk*x.at(kTime);
-                        aFourier[kFreq] = aFourier[kFreq] + (kkk*x.at(kTime+1) + bbb)*sin(M_PI*kFreq*x.at(kTime+1)/lengthFourier) - (kkk*x.at(kTime) + bbb)*sin(M_PI*kFreq*x.at(kTime)/lengthFourier) + (cos(M_PI*kFreq*x.at(kTime+1)/lengthFourier) - cos(M_PI*kFreq*x.at(kTime)/lengthFourier))*kkk*lengthFourier/M_PI/kFreq;
+                        kLinear = (y.at(kTime+1) - y.at(kTime))/(x.at(kTime+1) - x.at(kTime));
+                        bLinear = y.at(kTime) - kLinear*x.at(kTime);
+                        aFourier[kFreq] = aFourier[kFreq] + (kLinear*x.at(kTime+1) + bLinear)*sin(M_PI*kFreq*x.at(kTime+1)/lengthFourier) - (kLinear*x.at(kTime) + bLinear)*sin(M_PI*kFreq*x.at(kTime)/lengthFourier) + (cos(M_PI*kFreq*x.at(kTime+1)/lengthFourier) - cos(M_PI*kFreq*x.at(kTime)/lengthFourier))*kLinear*lengthFourier/M_PI/kFreq;
                     }
                 }
 
@@ -572,71 +558,73 @@ void MainWindow::processField(int i, int j, int methodFlag)
                     aFourier[kFreq] = aFourier[kFreq]*2.0/M_PI/kFreq;
             }
 
-            for (k=0; k<timeArray.length(); k++)
+            for (k=0; k<timeArray.length(); k++)//Гасим высшие гармоники
             {
-                ii = i+(j+k*(myWidth-cutUp-cutDown))*(myLength-cutRight-cutLeft);
-                TfieldSmooth[ii] = aFourier.at(0)/2;
+                i = pointX+(pointY+k*(myWidth))*(myLength);
+                TfieldSmooth[i] = aFourier.at(0)/2;
 
                 for(int kFreq = 1; kFreq < 2*(x.length()-1); kFreq++)
-                    TfieldSmooth[ii] = TfieldSmooth[ii] + aFourier.at(kFreq)*cos(M_PI*kFreq*x.at(k)/lengthFourier)*exp(-kFreq/lengthFourier/v0*kFreq/lengthFourier/v0/1.1);
+                    TfieldSmooth[i] = TfieldSmooth[i] + aFourier.at(kFreq)*cos(M_PI*kFreq*x.at(k)/lengthFourier)*exp(-kFreq/lengthFourier/v0*kFreq/lengthFourier/v0/1.1);
             }
 
             break;
         }
         case(PolynominalFlag):
         {
-            for(ii = 0; ii < polyPower; ii++)
+            //Метод наименьших квадратов для поиска коэффициентов полинома
+
+            for(i = 0; i < polyPower; i++)
             {
-                for(jj = 0; jj < polyPower; jj++)
+                for(j = 0; j < polyPower; j++)
                 {
                     temp = 0.0;
                     for (k=0; k<timeArray.size(); k++)
-                        //temp = temp + (x.at(k)^((double)ii))*(x.at(k)^((double)jj));
-                        temp = temp + pow(x.at(k),(double)ii)*pow(x.at(k),(double)jj);
-                    A[ii][jj] = temp;
+                        //temp = temp + (x.at(k)^((double)i))*(x.at(k)^((double)j));
+                        temp = temp + pow(x.at(k),(double)i)*pow(x.at(k),(double)j);
+                    A[i][j] = temp;
                 }
 
-                b[ii] = 0.0;
+                b[i] = 0.0;
                 for (k=0; k<timeArray.size(); k++)
-                    b[ii] = b[ii] + pow(x.at(k),(double)ii)*y[k];
+                    b[i] = b[i] + pow(x.at(k),(double)i)*y[k];
             }
 
             //Gauss forward marching method
 
             for (k=0; k<polyPower; k++)
             {
-                for (ii=k+1; ii<polyPower; ii++)
+                for (i=k+1; i<polyPower; i++)
                 {
-                    left[ii][k] = A[ii][k]/A[k][k];
-                    b[ii] = b[ii] - left[ii][k]*b[k];
+                    left[i][k] = A[i][k]/A[k][k];
+                    b[i] = b[i] - left[i][k]*b[k];
                 }
 
-                for(jj = k + 1; jj < polyPower; jj++)
-                    for (ii=k+1; ii<polyPower; ii++)
-                        A[jj][ii] = A[jj][ii] - left[jj][k]*A[k][ii];
+                for(j = k + 1; j < polyPower; j++)
+                    for (i=k+1; i<polyPower; i++)
+                        A[j][i] = A[j][i] - left[j][k]*A[k][i];
             }
 
             //Backward marching
 
             a[polyPower] = b[polyPower]/A[polyPower][polyPower];
 
-            for(ii = polyPower - 1; ii > -1; ii--)
+            for(i = polyPower - 1; i > -1; i--)
             {
-                a[ii] = b[ii];
-                for(jj = ii+1; jj<polyPower; jj++)
-                    a[ii] = a[ii] - A[ii][jj]*a[jj];
-                a[ii] = a[ii]/A[ii][ii];
+                a[i] = b[i];
+                for(j = i+1; j<polyPower; j++)
+                    a[i] = a[i] - A[i][j]*a[j];
+                a[i] = a[i]/A[i][i];
             }
 
             for (k=0; k<timeArray.size(); k++)
             {
                 temp = 0.0;
-                for(jj = 0; jj < polyPower; jj++)
-                    temp = temp + a[jj]*pow(x.at(k),(double)jj);
+                for(j = 0; j < polyPower; j++)
+                    temp = temp + a[j]*pow(x.at(k),(double)j);
 
-                ii = i+(j+k*(myWidth-cutUp-cutDown))*(myLength-cutRight-cutLeft);
+                i = pointX+(pointY+k*(myWidth))*(myLength);
 
-                TfieldSmooth[ii] = temp;
+                TfieldSmooth[i] = temp;
             }
 
             break;
@@ -644,77 +632,84 @@ void MainWindow::processField(int i, int j, int methodFlag)
 
         case(ERFCFlag):
         {
-            polyPower=2;
+            polyPower=2;//Зависимость ERFC похожа на корень, поэтому приблизим сначала им и найдем значение функции и ее производной в начальный момент времени
             y.clear();
-            double delta = 30.0;
-            double alpha;
-            int end = timeArray.length();
-            for (k=0; k<end; k++)
-                y.push_back(pow((Tfield[i+(j+k*myWidth)*myLength]+delta),2));
+            double theta0, theta0der;
+            double delta = 10.0;//Иногда целесообразно сместить все вверх на 10-30 градусов
+            double alpha;//Альфа и тау и есть параметры, по которым мы приближаем исходную зависимость
+            double tau0_;
 
-            for(ii = 0; ii < polyPower; ii++)
+            for (k=0; k< timeArray.length(); k++)
+                y.push_back(pow((Tfield[pointX+(pointY+k*myWidth)*myLength]+delta),2));
+
+            for(i = 0; i < polyPower; i++)
             {
-                for(jj = 0; jj < polyPower; jj++)
+                for(j = 0; j < polyPower; j++)
                 {
                     temp = 0.0;
-                    for (k=0; k<end; k++)
-                        temp = temp + pow(x.at(k),ii)*pow(x.at(k),jj);
-                    A[ii][jj] = temp;
+                    for (k=0; k< timeArray.length(); k++)
+                        temp = temp + pow(x.at(k),i)*pow(x.at(k),j);
+                    A[i][j] = temp;
                 }
 
-                b[ii] = 0.0;
-                for (k=0; k<end; k++)
-                    b[ii] = b[ii] + pow(x.at(k),ii)*y[k];
+                for (k=0; k< timeArray.length(); k++)
+                    b[i] = 0.0;
+                    b[i] = b[i] + pow(x.at(k),i)*y[k];
             }
+
+            qDebug() << "We are here0";
 
             //Gauss forward marching method
 
             for (k=0; k<polyPower-1; k++)
             {
-                for (ii=k+1; ii<polyPower; ii++)
+                for (i=k+1; i<polyPower; i++)
                 {
-                    left[ii][k] = A[ii][k]/A[k][k];
-                    b[ii] = b[ii] - left[ii][k]*b[k];
+                    left[i][k] = A[i][k]/A[k][k];
+                    b[i] = b[i] - left[i][k]*b[k];
                 }
 
-                for(jj = k + 1; jj < polyPower; jj++)
-                    for (ii=k+1; ii<polyPower; ii++)
-                        A[jj][ii] = A[jj][ii] - left[jj][k]*A[k][ii];
+                for(j = k + 1; j < polyPower; j++)
+                    for (i=k+1; i<polyPower; i++)
+                        A[j][i] = A[j][i] - left[j][k]*A[k][i];
             }
 
             //Backward marching
 
             a[polyPower] = b[polyPower]/A[polyPower][polyPower];
 
-            for(ii = polyPower - 1; ii > -1; ii--)
+            for(i = polyPower - 1; i > -1; i--)
             {
-                a[ii] = b[ii];
-                for(jj = ii+1; jj<polyPower; jj++)
-                    a[ii] = a[ii] - A[ii][jj]*a[jj];
-                a[ii] = a[ii]/A[ii][ii];
+                a[i] = b[i];
+                for(j = i+1; j<polyPower; j++)
+                    a[i] = a[i] - A[i][j]*a[j];
+                a[i] = a[i]/A[i][i];
             }
 
-            temp0 = (sqrt(a[0]) - delta - Tinit)/(T00 - Tinit - 273.15);
-            temp1 = a[1]/sqrt(a[0])/(T00 - Tinit - 273.15)/2;
+            qDebug() << "We are here1";
 
-            if(temp0 < 0)
-                temp0 = -temp0;
+            theta0 = (sqrt(a[0]) - delta - Tinit)/(T00 - Tinit - 273.15);//Наша функция в начальный момент
+            theta0der = a[1]/sqrt(a[0])/(T00 - Tinit - 273.15)/2;//Ее производная
 
-            if(temp1 < 0)
-                temp1 = -temp1;
+            if(theta0 < 0)
+                theta0 = -theta0;
 
-            double deltaGamma = 1.0;
+            if(theta0der < 0)
+                theta0der = -theta0der;
+
+            double deltaGamma = 1.0;//Гаммы нужны для решения уравнения методом деления пополам
             double leftGamma = 1.0e-7;
             double rightGamma = 0.4;
             double middleGamma, sum1, sum2;
-            double tau0_;
+
+            qDebug() << "We are here2";
 
             while(deltaGamma > 1.0e-4)
             {
                 middleGamma = (rightGamma + leftGamma)/2;
                 deltaGamma = (rightGamma - leftGamma)/middleGamma;
-                sum1 = 1.0 - exp(rightGamma)*erfc(sqrt(rightGamma)) - temp0;
-                sum2 = 1.0 - exp(middleGamma)*erfc(sqrt(middleGamma)) - temp0;
+                sum1 = 1.0 - exp(rightGamma)*erfc(sqrt(rightGamma)) - theta0;
+                sum2 = 1.0 - exp(middleGamma)*erfc(sqrt(middleGamma)) - theta0;
 
                 if(sum1*sum2 > 0)
                     rightGamma = middleGamma;
@@ -722,44 +717,29 @@ void MainWindow::processField(int i, int j, int methodFlag)
                     leftGamma = middleGamma;
             }
 
+            qDebug() << "We are here3";
+
             middleGamma = (rightGamma + leftGamma)/2;
 
-            tau0_ = (sqrt(middleGamma/M_PI) - middleGamma*exp(middleGamma)*erfc(sqrt(middleGamma)))/temp1;
-
+            tau0_ = (sqrt(middleGamma/M_PI) - middleGamma*exp(middleGamma)*erfc(sqrt(middleGamma)))/theta0der;
             alpha=sqrt(kCoef*middleGamma/tau0_);
 
-            for (k=0; k<timeArray.size(); k++)
-            {
-                float temp = timeArray[k]*a[1] + a[0];
-                temp = sqrt(temp) - 30.0;
-
-                qDebug() << timeArray[k] << Tfield[i+(j+k*myWidth)*myLength] << temp;
-            }
-
-            qDebug() << "t0 =" << tau0_ << ", a =" << alpha;
-            qDebug() << "temp0 =" << temp0 << ", temp1 =" << temp1;
-            if(tau0_ > 50*timeArray[1])
+            if(tau0_ > 50*timeArray[1])//Слишком низкий тепловой поток, пропишем дефолтное маленькое значение
             {
                 tau0_ = 50*timeArray[1];
-                alpha = 10.0;
+                alpha = 1.0;
             }
             else
             {
                 y.clear();
 
-                //qDebug() << "We are here";
-
-                //ii = i+(j+k*myWidth)*myLength;
-                //ii = i+(j+k*(myWidth-cutUp-cutDown))*(myLength-cutRight-cutLeft);
+                //Немного подправим значение альфы, используя метод наименьших квадратов
 
                 for (k=0; k<timeArray.length(); k++)
                 {
-                    ii = i+(j+k*myWidth)*myLength;
-                    y.push_back((Tfield[ii] - Tinit)/(T00 - Tinit - 273.15));
-                    //qDebug() << timeArray[k] << y.last();
+                    i = pointX+(pointY+k*myWidth)*myLength;
+                    y.push_back((Tfield[i] - Tinit)/(T00 - Tinit - 273.15));
                 }
-
-                //qDebug() << "We are here2";
 
                 double xLeft = 0.0, xRight = 0.1;
                 double xMiddle, sum1, sum2;
@@ -776,10 +756,10 @@ void MainWindow::processField(int i, int j, int methodFlag)
 
                     sum1 = 0.0;
                     sum2 = 0.0;
-                    for(ii = 0; ii < timeNum; ii++)
+                    for(i = 0; i < timeNum; i++)
                     {
-                        sum1 = sum1 + (y[ii] - (1-exp(xMiddle*x[ii])*erfc(sqrt(xMiddle*x[ii])))) * (sqrt(x[ii]/M_PI/xMiddle) - x[ii]*exp(xMiddle*x[ii])*erfc(sqrt(xMiddle*x[ii])));
-                        sum2 = sum2 + (y[ii] - (1-exp(xRight*x[ii])*erfc(sqrt(xRight*x[ii])))) * (sqrt(x[ii]/M_PI/xRight) - x[ii]*exp(xRight*x[ii])*erfc(sqrt(xRight*x[ii])));
+                        sum1 = sum1 + (y[i] - (1-exp(xMiddle*x[i])*erfc(sqrt(xMiddle*x[i])))) * (sqrt(x[i]/M_PI/xMiddle) - x[i]*exp(xMiddle*x[i])*erfc(sqrt(xMiddle*x[i])));
+                        sum2 = sum2 + (y[i] - (1-exp(xRight*x[i])*erfc(sqrt(xRight*x[i])))) * (sqrt(x[i]/M_PI/xRight) - x[i]*exp(xRight*x[i])*erfc(sqrt(xRight*x[i])));
                     }
 
                     if(sum1*sum2 > 0)
@@ -790,21 +770,16 @@ void MainWindow::processField(int i, int j, int methodFlag)
 
                 alpha = sqrt(xMiddle*kCoef);
 
-                qDebug() << "\r\nt0 =" << tau0_ << ", a =" << alpha;
-
-                qDebug() << "We are here";
-
                 for (k=0; k<timeArray.length(); k++)
                 {
-                  //ii = i+(j+k*(myWidth-cutUp-cutDown))*(myLength-cutRight-cutLeft);
-                  ii = i+(j+k*(myWidth))*(myLength);
-                  TfieldSmooth[ii] = Tinit + (T00 - Tinit - 273.15)*fTheta(x[k],alpha);
-                  //temp=TfieldSmooth[ii];
-                  //ii = i+(j+k*(myWidth))*(myLength);
+                  i = pointX+(pointY+k*(myWidth))*(myLength);
+                  TfieldSmooth[i] = Tinit + (T00 - Tinit - 273.15)*fTheta(x[k],alpha);
                 }
             }
 
-            qDebug() << "We are here2";
+            qDebug() << "We are here4";
+
+            //Запоминаем предысторию (потому что начальный момент и зависимость температуры от времени в каждоый точке термограммы свои)
 
             initialNum = -tau0_/timeArray[1];
             temp = -tau0_/initialNum;
@@ -817,125 +792,43 @@ void MainWindow::processField(int i, int j, int methodFlag)
             for (k=0; k<timeArray.length(); k++)
                 x[k] -= tau0_;
 
-            for (k=-initialNum; k<0; k++)
+            for (k=initialNum; k<0; k++)
             {
-                ii = i+(j+(k+initialNum)*(myWidth-cutUp-cutDown))*(myLength-cutRight-cutLeft);
-                //timeArrayERFC[ii] = k*temp;
-                TFieldERFC[ii] = Tinit + (T00 - Tinit - 273.15)*fTheta(fabs(k*temp + tau0_),alpha);
-                //TfieldSmooth[ii] = Tinit + (T00 - Tinit - 273.15)*fTheta(fabs(k*temp + tau0),alpha);
+                i = pointX+(pointY+(k-initialNum)*(myWidth))*(myLength);
+                TFieldERFC[i] = Tinit + (T00 - Tinit - 273.15)*fTheta(fabs(k*temp + tau0_),alpha);//Здесь храним предысторию температуры
             }
 
-            qDebug() << "We are here3";
-
-            /*if(initialNum < -20)
-                for (k=20; k>initialNum; k--)
-                {
-                    ii = i+(j+(k)*(myWidth-cutUp-cutDown))*(myLength-cutRight-cutLeft);
-                    timeArrayERFC[ii] = 0.0;
-                }*/
-
-            qDebug() << "tau0 =" << tau0_ << "initNum =" << initialNum;
-
-            tau0[i+j*myLength] = tau0_;
-
-            qDebug() << "We are here4";
+            tau0[pointX+pointY*myLength] = tau0_;//Здесь храним начальный момент времени
 
             break;
         }
     }
 }
 
-void MainWindow::qCalc(int i, int j, int methodFlag)
+void MainWindow::qCalc(int pointX, int pointY, int methodFlag)//По сглаженной температуре восстановим тепловой поток
 {
     int k, i1, i2;
-    double qq;
+    double qAccum;//Вместо интеграла используем суммирование
 
     switch(methodFlag)
     {
 
-    case(LowPassFlag):
-    {
-        if(ui->facilityBox->currentIndex() == 0)
-            for(k = 1; k<timeArray.size(); k++)
-            {
-                qq = 0.0;
-                for(int l = 1; l < k+1; l++)
-                {
-                    i2 = i+(j+l*(myWidth-cutUp-cutDown))*(myLength-cutRight-cutLeft);
-                    i1 = i+(j+(l-1)*(myWidth-cutUp-cutDown))*(myLength-cutRight-cutLeft);
-                    qq = qq + (TfieldSmooth[i2] - TfieldSmooth[i1])/(sqrt(timeArray.last() - timeArray[l]) + sqrt(timeArray.last() - timeArray[l-1]));
-                }
-
-                i1 = i+(j+k*(myWidth-cutUp-cutDown))*(myLength-cutRight-cutLeft);
-                q[i1] = qq*qCalcCoef;
-            }
-
-            //break;
-        else
-        {
-            i1 = i+(j+0*(myWidth-cutUp-cutDown))*(myLength-cutRight-cutLeft);
-            double b3 = pow(TfieldSmooth[i1],3.0);
-            double k3 = (b3-pow(Tinit,3.0))/deltaTau;
-
-            int tNum;
-            double temp;
-            tNum = deltaTau/timeArray[1];
-            temp = timeArray[1]/tNum;
-
-            double *localTarray = new double[tNum+timeNum];
-            double *localTimeArray = new double[tNum+timeNum];
-
-            for(k = -tNum; k<0; k++)
-            {
-                localTimeArray[k+tNum] = k*temp;
-                localTarray[k+tNum] = pow(k3*localTimeArray[k]+b3,1.0/3.0);
-            }
-
-            for(k = 0; k<timeNum; k++)
-            {
-                i2 = i+(j+k*(myWidth-cutUp-cutDown))*(myLength-cutRight-cutLeft);
-                localTimeArray[k] = timeArray[k];
-                localTarray[k] = TfieldSmooth[i2];
-            }
-
-            for(k = -tNum; k<timeNum; k++)
-            {
-                qq = 0.0;
-                for(int l = 1; l < k+1; l++)
-                {
-                    i2 = i+(j+(l+tNum)*(myWidth-cutUp-cutDown))*(myLength-cutRight-cutLeft);
-                    i1 = i+(j+(l+tNum-1)*(myWidth-cutUp-cutDown))*(myLength-cutRight-cutLeft);
-                    qq = qq + (localTarray[k+tNum] - localTarray[k+tNum-1])/(sqrt(localTimeArray[timeNum+tNum-1] - localTimeArray[l+tNum]) + sqrt(localTimeArray[timeNum+tNum-1] - localTimeArray[l+tNum-1]));
-                }
-
-                if(k>0)
-                {
-                    i1 = i+(j+k*(myWidth-cutUp-cutDown))*(myLength-cutRight-cutLeft);
-                    q[i1] = qq*qCalcCoef;
-                }
-            }
-
-            delete localTarray;
-            delete localTimeArray;
-        }
-        break;
-    }
-
+    case(LowPassFlag)://В обоих случаях метод вычисления потоков одинаков, потому что не нужно учитывать предысторию
     case(PolynominalFlag):
     {
-        i1 = i+(j+0*(myWidth-cutUp-cutDown))*(myLength-cutRight-cutLeft);
+        i1 = pointX+(pointY+0*(myWidth))*(myLength);
         for(k = 1; k<timeArray.size(); k++)
         {
-            qq = 0.0;
+            qAccum = 0.0;
             for(int l = 1; l < k+1; l++)
             {
-                i2 = i+(j+l*(myWidth-cutUp-cutDown))*(myLength-cutRight-cutLeft);
-                i1 = i+(j+(l-1)*(myWidth-cutUp-cutDown))*(myLength-cutRight-cutLeft);
-                qq = qq + (TfieldSmooth[i2] - TfieldSmooth[i1])/(sqrt(timeArray.last() - timeArray[l]) + sqrt(timeArray.last() - timeArray[l-1]));
+                i2 = pointX+(pointY+l*(myWidth))*(myLength);
+                i1 = pointX+(pointY+(l-1)*(myWidth))*(myLength);
+                qAccum = qAccum + (TfieldSmooth[i2] - TfieldSmooth[i1])/(sqrt(timeArray.last() - timeArray[l]) + sqrt(timeArray.last() - timeArray[l-1]));
             }
 
-            i1 = i+(j+k*(myWidth-cutUp-cutDown))*(myLength-cutRight-cutLeft);
-            q[i1] = qq*qCalcCoef;
+            i1 = pointX+(pointY+k*(myWidth))*(myLength);
+            q[i1] = qAccum*qCalcCoef;
         }
         break;
     }
@@ -943,84 +836,49 @@ void MainWindow::qCalc(int i, int j, int methodFlag)
     case(ERFCFlag):
     {
         double tmp;
+        int i, l;
 
-        qDebug() << "We are here0";
+        initialNum = tau0[pointX+pointY*myLength]/timeArray[1];
+        tmp = -tau0[pointX+pointY*myLength]/initialNum;
 
-        initialNum = tau0[i+j*myLength]/timeArray[1];
-        tmp = -tau0[i+j*myLength]/initialNum;
+        i1 = pointX+(pointY+0*(myWidth))*(myLength);
 
-        i1 = i+(j+0*(myWidth-cutUp-cutDown))*(myLength-cutRight-cutLeft);
-        int ii;
-        int tNum=20;
-
-        for(k = 0; k<20; k++)
-        {
-            //ii = i+(j+(k)*(myWidth-cutUp-cutDown))*(myLength-cutRight-cutLeft);
-            //ii = i+(j+(k)*(myWidth))*(myLength);
-            //if(timeArrayERFC[ii] == 0.0)
-                //tNum--;
-
-            timeArrayERFC[k] = k*tmp;
-            //qDebug() << timeArrayERFC[k];
-        }
-
-        qDebug() << "We are here1 Q";
-        qDebug() << initialNum;
-        qDebug() << timeArray.length();
-
+        //Предыстория в каждой точке своя, поэтому длина массива в общем случае разная. Заполним массивы с учетом предыстории
         double* localTarray = new double[initialNum+timeArray.length()];
         double* localTimeArray = new double[initialNum+timeArray.length()];
 
-        for(k = -initialNum; k<0; k++)
+        for(k = 0; k<initialNum; k++)
         {
-            ii = i+(j+(k+initialNum)*(myWidth-cutUp-cutDown))*(myLength-cutRight-cutLeft);
-            //ii = i+(j+(k+initialNum)*(myWidth))*(myLength);
-
-           // qDebug() << "ii =" << ii;
-            //qDebug() << "k ="  << k;
-            //qDebug() << "k+initialNum ="  << k+initialNum;
-
-            localTimeArray[k+initialNum] = timeArrayERFC[k+initialNum];
-
-            //qDebug() << "localTimeArray assignment completed";
-
-            localTarray[k+initialNum] = TFieldERFC[ii];
-
-            qDebug() << localTimeArray[k+initialNum] << localTarray[k+initialNum];
+            localTimeArray[k] = (initialNum - k)*tmp;
         }
 
-        //qDebug() << "We are here2 Q";
+        for(k = -initialNum; k<0; k++)
+        {
+            i = pointX+(pointY+(k+initialNum)*(myWidth))*(myLength);
+            localTarray[k+initialNum] = TFieldERFC[i];
+        }
 
         for(k = 0; k<timeArray.length(); k++)
         {
-            i2 = i+(j+k*(myWidth-cutUp-cutDown))*(myLength-cutRight-cutLeft);
+            i2 = pointX+(pointY+k*(myWidth))*(myLength);
             localTimeArray[k+initialNum] = timeArray[k];
             localTarray[k+initialNum] = TfieldSmooth[i2];
-
-            qDebug() << localTimeArray[k+initialNum] << localTarray[k+initialNum];
         }
-        int l;
 
-        qDebug() << "We are here3";
-
-
-
-        for(k = 1; k<timeNum+initialNum; k++)
+        for(k = 1; k<initialNum+timeArray.length(); k++)
         {
-            qq = 0.0;
+            qAccum = 0.0;
             for(l = 1; l < k+1; l++)
             {
-                qq = qq + (localTarray[l] - localTarray[l-1])/(sqrt(localTimeArray[k] - localTimeArray[l]) + sqrt(localTimeArray[k] - localTimeArray[l-1]));
+                qAccum = qAccum + (localTarray[l] - localTarray[l-1])/(sqrt(localTimeArray[k] - localTimeArray[l]) + sqrt(localTimeArray[k] - localTimeArray[l-1]));
             }
 
-            if((k-tNum)>=0)
+            if((k-initialNum)>=0)
             {
-                i1 = i+(j+(k-tNum)*(myWidth-cutUp-cutDown))*(myLength-cutRight-cutLeft);
-                q[i1] = qq*qCalcCoef;
+                i1 = pointX+(pointY+(k-initialNum)*(myWidth))*(myLength);
+                q[i1] = qAccum*qCalcCoef;
             }
         }
-
-        qDebug() << "We are here4";
 
         delete [] localTarray;
         delete [] localTimeArray;
@@ -1553,7 +1411,7 @@ void MainWindow::on_action_2_triggered()
     connect(CpEdit,SIGNAL(editingFinished()),this,SLOT(setCp( )),Qt::UniqueConnection);
     connect(lambdaEdit,SIGNAL(editingFinished()),this,SLOT(setLambda( )),Qt::UniqueConnection);
     if(!plotsLayout->isEmpty())
-        replot();
+        redrawPlots();
 }
 
 void MainWindow::setRho( )
@@ -1564,7 +1422,7 @@ void MainWindow::setRho( )
     kCoef = rho*Cp*lambda;
     qCalcCoef = 2*sqrt(kCoef/M_PI);
     if(!plotsLayout->isEmpty())
-        replot();
+        redrawPlots();
 }
 
 void MainWindow::setCp()
@@ -1575,7 +1433,7 @@ void MainWindow::setCp()
     kCoef = rho*Cp*lambda;
     qCalcCoef = 2*sqrt(kCoef/M_PI);
     if(!plotsLayout->isEmpty())
-        replot();
+        redrawPlots();
 }
 
 void MainWindow::setLambda( )
@@ -1586,7 +1444,7 @@ void MainWindow::setLambda( )
     kCoef = rho*Cp*lambda;
     qCalcCoef = 2*sqrt(kCoef/M_PI);
     if(!plotsLayout->isEmpty())
-        replot();
+        redrawPlots();
 }
 
 void MainWindow::setT00()
@@ -1596,7 +1454,7 @@ void MainWindow::setT00()
         T00 = str.toDouble();
 
     if(!plotsLayout->isEmpty())
-        replot();
+        redrawPlots();
 }
 
 void MainWindow::setAlpha0()
@@ -1606,10 +1464,10 @@ void MainWindow::setAlpha0()
         alpha0 = str.toDouble();
 
     if(!plotsLayout->isEmpty())
-        replot();
+        redrawPlots();
 }
 
-void MainWindow::replot()
+void MainWindow::redrawPlots()
 {
     QPen pen(Qt::red);
     QPen pen2(Qt::blue);
@@ -1674,8 +1532,8 @@ void MainWindow::replot()
 
         for (int k=0; k<timeArray.size(); k++)
         {
-            y2.push_back(TfieldSmooth[i+(j+k*(myWidth-cutUp-cutDown))*(myLength-cutRight-cutLeft)]);
-            qSet.push_back(q[i+(j+k*(myWidth-cutUp-cutDown))*(myLength-cutRight-cutLeft)]);
+            y2.push_back(TfieldSmooth[i+(j+k*(myWidth))*(myLength)]);
+            qSet.push_back(q[i+(j+k*(myWidth))*(myLength)]);
             if(minq >= qSet.at(k))
                 minq = qSet.at(k);
             if(maxq <= qSet.at(k))
